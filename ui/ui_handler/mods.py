@@ -1,8 +1,10 @@
 from typing import List, Dict
+import os
+import datetime
 
-from PySide6.QtWidgets import QWidget, QFileDialog, QFrame, QVBoxLayout, QApplication
-from PySide6.QtGui import QPaintEvent, QPixmap, QColor
-from PySide6.QtCore import QEvent, Qt, QTimer, QSize
+from PySide6.QtWidgets import QWidget, QFileDialog, QFrame, QVBoxLayout, QApplication, QMenu
+from PySide6.QtGui import QPaintEvent, QPixmap, QColor, QAction, QCursor
+from PySide6.QtCore import QEvent, Qt, QTimer, QSize, QPoint
 
 from .modclass import ModClass
 from .modbutton import ModButton
@@ -90,7 +92,7 @@ class SetPreview(QWidget):
 
     def clearPreview(self):
         self.preview = None
-        self.ui.preview.setPixmap(None)
+        self.ui.preview.setPixmap(QPixmap())
         self.updateButtons()
         self.resizeEvent(None)
 
@@ -141,6 +143,13 @@ class Mods(QWidget):
     modsSources: Dict[str, ModClass] = {}
 
     currentGameVersion = ""
+    
+    # Variables to track sorting state
+    SORT_BY_NAME = "name"
+    SORT_BY_DATE = "date"
+    SORT_BY_SIZE = "size"
+    sortBy = SORT_BY_NAME
+    sortAscending = True
 
     def __init__(self, saveMethod, installMethod, uninstallMethod, deleteMethod, buildMethod, createMethod,
                  reloadMethod, openFolderMethod):
@@ -215,6 +224,9 @@ class Mods(QWidget):
         self.ui.createMod.clicked.connect(createMethod)
         self.ui.reloadModsList.clicked.connect(reloadMethod)
         self.ui.openModsFolderButton.clicked.connect(openFolderMethod)
+        
+        # Connect sort button to menu
+        self.ui.modsSortButton.clicked.connect(self.showSortMenu)
 
         self.ui.searchArea.textChanged.connect(self.searchEvent)
 
@@ -301,7 +313,6 @@ class Mods(QWidget):
     def searchEvent(self, text):
         if not text:
             displayModButtons = self.modsButtons
-
         else:
             text = text.casefold()
 
@@ -312,18 +323,24 @@ class Mods(QWidget):
                 modButton
                 for modButton in self.modsButtons
                 if any([
-                    text in f" {modButton.modClass.name.lower()}",
-                    text in f" {modButton.modClass.author.lower()}",
-                    modButton.modClass.gameVersion.startswith(text.strip()),
-                    any([tag.casefold().lower().startswith(text.strip()) for tag in modButton.modClass.tags])
+                    text in f" {modButton.modClass.name.lower() if modButton.modClass.name else ''}",
+                    text in f" {modButton.modClass.author.lower() if modButton.modClass.author else ''}",
+                    modButton.modClass.gameVersion and modButton.modClass.gameVersion.startswith(text.strip()),
+                    modButton.modClass.tags and any([tag.casefold().lower().startswith(text.strip()) for tag in modButton.modClass.tags if tag])
                 ])
             ]
 
+        # Remove all mod buttons from the UI
         for modButton in self.modsButtons:
             modButton.remove()
 
+        # Re-add the filtered mod buttons, maintaining current sort order
         for modButton in displayModButtons:
             modButton.restore(self.modsList)
+        
+        # If there's a selected mod in the filtered results, ensure it stays selected
+        if self.selectedModButton is not None and self.selectedModButton in displayModButtons:
+            self.selectedModButton.select()
 
     # Changed
     def nameChanged(self, text):
@@ -528,6 +545,10 @@ class Mods(QWidget):
 
         self.modsSources[hash] = modSources
         self.addModButton(modSources)
+        
+        # Apply current sort when a new mod is added
+        if len(self.modsButtons) > 1:  # Only sort if there's more than one mod
+            self.sortMods(self.sortBy, self.sortAscending)
 
     def updateMod(self,
                   hash: str,
@@ -554,3 +575,107 @@ class Mods(QWidget):
         self.modsSources.clear()
 
         self.saveTimer.stop()
+
+    # Add a method to show the sort menu
+    def showSortMenu(self):
+        menu = QMenu(self)
+        
+        # Apply styling to match the app's theme
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #363636;
+                color: #eeeeee;
+                border: 1px solid #767676;
+                border-radius: 3px;
+            }
+            QMenu::item {
+                padding: 5px 18px 5px 12px;
+            }
+            QMenu::item:selected {
+                background-color: #767676;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #767676;
+                margin: 4px 8px;
+            }
+        """)
+        
+        # Sort by Name
+        actionNameAZ = QAction("Name (A-Z)", self)
+        actionNameZA = QAction("Name (Z-A)", self)
+        actionNameAZ.triggered.connect(lambda: self.sortMods(self.SORT_BY_NAME, True))
+        actionNameZA.triggered.connect(lambda: self.sortMods(self.SORT_BY_NAME, False))
+        
+        # Sort by Date
+        actionDateNew = QAction("Date Added (Newest First)", self)
+        actionDateOld = QAction("Date Added (Oldest First)", self)
+        actionDateNew.triggered.connect(lambda: self.sortMods(self.SORT_BY_DATE, False))
+        actionDateOld.triggered.connect(lambda: self.sortMods(self.SORT_BY_DATE, True))
+        
+        # Sort by Size
+        actionSizeSmall = QAction("File Size (Smallest First)", self)
+        actionSizeLarge = QAction("File Size (Largest First)", self)
+        actionSizeSmall.triggered.connect(lambda: self.sortMods(self.SORT_BY_SIZE, True))
+        actionSizeLarge.triggered.connect(lambda: self.sortMods(self.SORT_BY_SIZE, False))
+        
+        # Add actions to menu
+        menu.addAction(actionNameAZ)
+        menu.addAction(actionNameZA)
+        menu.addSeparator()
+        menu.addAction(actionDateNew)
+        menu.addAction(actionDateOld)
+        menu.addSeparator()
+        menu.addAction(actionSizeSmall)
+        menu.addAction(actionSizeLarge)
+        
+        # Show menu above the button
+        pos = self.ui.modsSortButton.mapToGlobal(QPoint(0, 0))
+        menu.exec(QPoint(pos.x(), pos.y() - menu.sizeHint().height()))
+    
+    # Add method to sort mods
+    def sortMods(self, sortBy, ascending):
+        self.sortBy = sortBy
+        self.sortAscending = ascending
+        
+        # Sort the modsButtons list based on criteria
+        if sortBy == self.SORT_BY_NAME:
+            self.modsButtons.sort(key=lambda mb: mb.modClass.name.lower(), reverse=not ascending)
+        elif sortBy == self.SORT_BY_DATE:
+            # For ModCreator, use the modSourcesPath modification time
+            self.modsButtons.sort(
+                key=lambda mb: os.path.getmtime(mb.modClass.modSourcesPath) if os.path.exists(mb.modClass.modSourcesPath) else 0,
+                reverse=not ascending
+            )
+        elif sortBy == self.SORT_BY_SIZE:
+            # For ModCreator, get the total size of the mod sources directory
+            def get_directory_size(directory):
+                if not os.path.exists(directory):
+                    return 0
+                total_size = 0
+                try:
+                    for path, dirs, files in os.walk(directory):
+                        for f in files:
+                            fp = os.path.join(path, f)
+                            if os.path.exists(fp):
+                                total_size += os.path.getsize(fp)
+                except:
+                    pass
+                return total_size
+                
+            self.modsButtons.sort(
+                key=lambda mb: get_directory_size(mb.modClass.modSourcesPath),
+                reverse=not ascending
+            )
+        
+        # Remove all mod buttons from the UI
+        for modButton in self.modsButtons:
+            modButton.remove()
+        
+        # Re-add mod buttons in sorted order
+        for modButton in self.modsButtons:
+            modButton.restore(self.modsList)
+        
+        # If a mod was selected, make sure it stays selected
+        if self.selectedModButton is not None:
+            self.selectedModButton.select()

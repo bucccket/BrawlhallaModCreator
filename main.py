@@ -13,6 +13,7 @@ try:
     JAVA_FOUND = True
 except ImportError as e:
     Notification = None
+    print(e.msg)
 
     if e.msg == "Java not found!":
         JAVA_FOUND = False
@@ -37,7 +38,7 @@ from ui.utils.mainthread import QExecMainThread
 
 SUPPORT_URL = "https://www.patreon.com/bhmodloader"
 
-PROGRAM_NAME = "Brawlhalla ModCreator"
+PROGRAM_NAME = "Brawlhalla ModCreator + Sound"
 
 
 def InitWindowSetText(text):
@@ -61,9 +62,14 @@ def InitWindowClose():
 
 def TerminateApp():
     for proc in multiprocessing.active_children():
-        proc.kill()
-    os.kill(multiprocessing.current_process().pid, 0)
-    sys.exit(0)
+        try:
+            proc.kill()
+        except:
+            pass
+    try:
+        sys.exit(0)
+    except:
+        os._exit(0)
 
 
 class ModCreator(QMainWindow):
@@ -298,6 +304,7 @@ class ModCreator(QMainWindow):
             elif ntype in [NotificationType.CompileModSourcesSpriteHasNoSymbolclass,  # Compiler
                            NotificationType.CompileModSourcesSpriteEmpty,
                            NotificationType.CompileModSourcesSpriteNotFoundInFolder,
+                           NotificationType.CompileModSourcesSpriteError,
                            NotificationType.CompileModSourcesUnsupportedCategory,
                            NotificationType.CompileModSourcesUnknownFile,
                            NotificationType.CompileModSourcesSaveError,
@@ -416,13 +423,20 @@ class ModCreator(QMainWindow):
 
                 # Compiler
                 if ntype == NotificationType.CompileModSourcesSpriteHasNoSymbolclass:
-                    string = f"Sprite '{notif.args[1]}' has no name"
+                    # Don't show errors for sprites that will be auto-named
+                    continue
 
                 elif ntype == NotificationType.CompileModSourcesSpriteEmpty:
+                    # Skip showing empty errors for auto-named sprites
+                    if notif.args[1].startswith("AutoNamed_Sprite_"):
+                        continue
                     string = f"Sprite '{notif.args[1]}' is empty"
 
                 elif ntype == NotificationType.CompileModSourcesSpriteNotFoundInFolder:
                     string = f"Not found sprite in '{notif.args[1]}'"
+
+                elif ntype == NotificationType.CompileModSourcesSpriteError:
+                    string = f"Sprite error: {notif.args[1]}"
 
                 elif ntype == NotificationType.CompileModSourcesUnsupportedCategory:
                     string = f"Unsupported elements category '{notif.args[1]}'"
@@ -504,8 +518,8 @@ class ModCreator(QMainWindow):
 
     def copyToClipboard(self, text):
         cb = QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
-        cb.setText(text, mode=cb.Clipboard)
+        cb.clear()
+        cb.setText(text)
 
     def setLoadingScreen(self):
         ClearFrame(self.ui.mainFrame)

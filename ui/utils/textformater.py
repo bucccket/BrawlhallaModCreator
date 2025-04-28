@@ -71,6 +71,8 @@ class TextFormatter:
 
     @classmethod
     def format(cls, text: str, textSize="14px"):
+        if text is None:
+            text = ""
         text = text.strip()
 
         for symbol, mnemonic in cls.mnemonics.items():

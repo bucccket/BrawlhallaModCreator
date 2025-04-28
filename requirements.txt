@@ -1,4 +1,7 @@
-PySide6
 jpype1
 pywin32
+PySide6
 psutil
+rarfile
+py7zr
+requests>=2.31.0
