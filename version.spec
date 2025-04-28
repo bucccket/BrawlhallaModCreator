@@ -2,8 +2,8 @@
 
 VSVersionInfo(
     ffi=FixedFileInfo(
-        filevers=(0, 2, 6, 0),
-        prodvers=(0, 2, 6, 0),
+        filevers=(0, 3, 0, 0),
+        prodvers=(0, 3, 0, 0),
         mask=0x3f,
         flags=0x2,      #0x2 - Prerelease, 0x0 - Release
         OS=0x40004,
@@ -18,13 +18,13 @@ VSVersionInfo(
                     u'040904B0',
                     [
                         StringStruct(u'CompanyName', u'I_FabrizioG_I'),
-                        StringStruct(u'FileDescription', u'Brawlhalla Mod Creator'),
-                        StringStruct(u'FileVersion', u'0.2.6version'),
-                        StringStruct(u'InternalName', u'BrawlhallaModCreator'),
+                        StringStruct(u'FileDescription', u'Brawlhalla Mod Creator + Sound'),
+                        StringStruct(u'FileVersion', u'0.3.0version'),
+                        StringStruct(u'InternalName', u'BrawlhallaModCreator+Sound'),
                         StringStruct(u'LegalCopyright', u'\xa9 I_FabrizioG_I.'),
-                        StringStruct(u'OriginalFilename', u'BrawlhallaModCreator.exe'),
-                        StringStruct(u'ProductName', u'Brawlhalla Mod Creator'),
-                        StringStruct(u'ProductVersion', u'0.2.6.0')
+                        StringStruct(u'OriginalFilename', u'BrawlhallaModCreator+Sound.exe'),
+                        StringStruct(u'ProductName', u'Brawlhalla Mod Creator + Sound'),
+                        StringStruct(u'ProductVersion', u'0.3.0.0')
                     ]
                 )
             ]), 

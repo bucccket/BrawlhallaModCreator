@@ -31,7 +31,7 @@ class ModButton(QWidget):
     def updateData(self):
         self.ui.modName.setText(self.modClass.name)
         self.ui.gameVersion.setText(f"[{self.modClass.gameVersion}]")
-        self.ui.modAuthor.setText("Author: " + self.modClass.author)
+        self.ui.modAuthor.setText("Author: " + str(self.modClass.author))
         if self.modClass.currentVersion:
             gameVersionColor = "#43C15F"
         else:
